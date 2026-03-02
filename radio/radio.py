@@ -148,12 +148,19 @@ class RadioApp:
         if program_sig != self._last_program_sig:
             self._last_program_sig = program_sig
             if self._verbosity != "quiet":
+                is_ident = np.kind == "ident"
                 if self._verbosity == "verbose":
                     ts = datetime.datetime.now().strftime("%H:%M:%S")
-                    tag = f"{T.BOLD}{T.BRIGHT_GREEN}[PLAY {ts}]{T.RESET}"
+                    if is_ident:
+                        tag = f"{T.BOLD}{T.BRIGHT_YELLOW}[IDENT {ts}]{T.RESET}"
+                    else:
+                        tag = f"{T.BOLD}{T.BRIGHT_GREEN}[PLAY {ts}]{T.RESET}"
                     filepath = np.path or "—"
                 else:
-                    tag = f"{T.BOLD}{T.BRIGHT_GREEN}[PLAY]{T.RESET}"
+                    if is_ident:
+                        tag = f"{T.BOLD}{T.BRIGHT_YELLOW}[IDENT]{T.RESET}"
+                    else:
+                        tag = f"{T.BOLD}{T.BRIGHT_GREEN}[PLAY]{T.RESET}"
                     filepath = _basename(np.path)
                 print(
                     f"{tag} {T.BOLD}{T.BRIGHT_CYAN}{np.station}{T.RESET}"
@@ -168,10 +175,10 @@ class RadioApp:
             if self._verbosity != "quiet":
                 if self._verbosity == "verbose":
                     ts = datetime.datetime.now().strftime("%H:%M:%S")
-                    tag = f"{T.BOLD}{T.BRIGHT_YELLOW}[IDENT {ts}]{T.RESET}"
+                    tag = f"{T.BOLD}{T.BRIGHT_MAGENTA}[OVERLAY {ts}]{T.RESET}"
                     filepath = np.ident_overlay.path
                 else:
-                    tag = f"{T.BOLD}{T.BRIGHT_YELLOW}[IDENT]{T.RESET}"
+                    tag = f"{T.BOLD}{T.BRIGHT_MAGENTA}[OVERLAY]{T.RESET}"
                     filepath = _basename(np.ident_overlay.path)
                 print(
                     f"{tag} {T.BOLD}{T.BRIGHT_CYAN}{np.station}{T.RESET}"
