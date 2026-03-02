@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import sys
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -12,6 +13,7 @@ from mutagen.mp3 import MP3
 from .db import connect
 from .helpers import MediaInfo, upsert_media, upsert_station, link_station_media
 from .station_config import StationConfig, load_station_toml
+from . import terminal as T
 
 
 def parse_artist_title(filename: str) -> tuple[Optional[str], Optional[str]]:
@@ -35,6 +37,22 @@ def iter_mp3(root: Path) -> Iterable[Path]:
     for p in root.rglob("*.mp3"):
         if p.is_file():
             yield p
+
+
+def _progress(label: str, n: int) -> None:
+    """Overwrite the current line with a progress counter (TTY only)."""
+    if T._IS_TTY:
+        print(
+            f"\r  {T.YELLOW}{label}:{T.RESET} {T.BOLD}{n}{T.RESET} files...",
+            end="",
+            flush=True,
+        )
+
+
+def _progress_done() -> None:
+    """Move to a new line after in-place progress output."""
+    if T._IS_TTY:
+        print()
 
 
 def scan_songs(con, music_root: str, *, station_ids: list = None, verbose: bool) -> int:
@@ -65,9 +83,17 @@ def scan_songs(con, music_root: str, *, station_ids: list = None, verbose: bool)
         )
         for sid in (station_ids or []):
             link_station_media(con, sid, media_id)
-        if verbose:
-            print(f"[song] {tag:>10}  {p.name}  ({dur:.1f}s)  id={media_id}")
         n += 1
+        if verbose:
+            print(
+                f"  {T.DIM}[song]{T.RESET} {T.CYAN}{tag:>10}{T.RESET}"
+                f"  {p.name}  {T.DIM}({dur:.1f}s)  id={media_id}{T.RESET}"
+            )
+        else:
+            _progress("Scanning songs", n)
+
+    if not verbose:
+        _progress_done()
 
     con.commit()
     return n
@@ -99,9 +125,17 @@ def scan_station_media_dir(con, station_id: int, directory: str, kind: str, *, v
             ),
         )
         link_station_media(con, station_id, media_id)
-        if verbose:
-            print(f"[{kind:<10}] {p.name} ({dur:.1f}s) id={media_id} linked->station {station_id}")
         n += 1
+        if verbose:
+            print(
+                f"  {T.DIM}[{kind:<10}]{T.RESET} {p.name}"
+                f"  {T.DIM}({dur:.1f}s)  id={media_id}  linked\u2192station {station_id}{T.RESET}"
+            )
+        else:
+            _progress(kind, n)
+
+    if not verbose:
+        _progress_done()
 
     con.commit()
     return n
@@ -163,39 +197,43 @@ def main() -> int:
     args = ap.parse_args()
 
     con = connect(str(Path(args.db).expanduser()))
-    print(f"DB: {args.db}")
+    print(f"{T.BOLD}{T.BLUE}DB:{T.RESET} {args.db}")
 
     # Upsert stations first so we can link songs to them
     cfgs = load_station_cfgs(args.stations)
     station_ids = []
     for cfg in cfgs:
         sid = upsert_station(con, cfg)
-        print(f"Station upserted: {cfg.name} @ {cfg.freq:.1f} FM (id={sid})")
+        print(
+            f"{T.GREEN}\u2713 Station:{T.RESET} {T.BOLD}{T.CYAN}{cfg.name}{T.RESET}"
+            f" @ {T.MAGENTA}{cfg.freq:.1f}{T.RESET} FM"
+            f"  {T.DIM}(id={sid}){T.RESET}"
+        )
         station_ids.append(sid)
 
-    print(f"Scanning songs under: {args.music}")
+    print(f"\n{T.BOLD}{T.BLUE}Scanning songs under:{T.RESET} {args.music}")
     n_songs = scan_songs(con, args.music, station_ids=station_ids, verbose=args.verbose)
-    print(f"Songs: {n_songs}")
+    print(f"  {T.GREEN}Songs: {T.BOLD}{n_songs}{T.RESET}")
 
     for cfg, sid in zip(cfgs, station_ids):
-        print(f"Scanning station media: {cfg.name}")
+        print(f"\n{T.BOLD}{T.BLUE}Scanning station media:{T.RESET} {T.BOLD}{T.CYAN}{cfg.name}{T.RESET}")
 
         n_idents = scan_station_media_dir(con, sid, cfg.idents_dir, "ident", verbose=args.verbose)
         n_commercials = scan_station_media_dir(con, sid, cfg.commercials_dir, "commercial", verbose=args.verbose)
         n_toth = scan_station_media_dir(con, sid, cfg.top_of_the_hour, "top_of_hour", verbose=args.verbose)
-        print(f"  idents: {n_idents}")
-        print(f"  commercials: {n_commercials}")
-        print(f"  top_of_the_hour: {n_toth}")
+        print(f"  {T.GREEN}idents: {T.BOLD}{n_idents}{T.RESET}")
+        print(f"  {T.GREEN}commercials: {T.BOLD}{n_commercials}{T.RESET}")
+        print(f"  {T.GREEN}top_of_the_hour: {T.BOLD}{n_toth}{T.RESET}")
 
         overlay_counts = scan_schedule_overlays(con, sid, cfg, verbose=args.verbose)
         if overlay_counts:
-            print(f"  overlays:")
+            print(f"  {T.GREEN}overlays:{T.RESET}")
             for dir_path, n in overlay_counts.items():
-                print(f"    {dir_path}: {n} files")
+                print(f"    {T.DIM}{dir_path}:{T.RESET} {T.BOLD}{n}{T.RESET} files")
 
     con.commit()
     con.close()
-    print("Done.")
+    print(f"\n{T.BOLD}{T.BRIGHT_GREEN}\u2713 Done.{T.RESET}")
     return 0
 
 

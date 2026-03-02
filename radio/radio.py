@@ -1,6 +1,7 @@
 # radio/radio.py
 from __future__ import annotations
 
+import datetime
 import glob
 import time
 import threading
@@ -16,6 +17,7 @@ from .station_config import load_station_toml, StationConfig
 from .scheduler import Scheduler, NowPlaying
 from .player import Player, PlayerConfig
 from .api import create_api
+from . import terminal as T
 
 
 # -------------------- Helpers --------------------
@@ -75,8 +77,14 @@ class TuningState:
 class RadioApp:
     """Main radio application coordinating the scheduler, player, and GPIO input."""
 
-    def __init__(self, config: RadioConfig, inputs: list[TuneInput] | None = None):
+    def __init__(
+        self,
+        config: RadioConfig,
+        inputs: list[TuneInput] | None = None,
+        verbosity: str = "normal",
+    ):
         self.config = config
+        self._verbosity = verbosity  # "quiet" | "normal" | "verbose"
 
         # Load station configs
         paths = sorted(glob.glob(self.config.station_tomls_glob))
@@ -123,6 +131,11 @@ class RadioApp:
         self._last_program_sig: Optional[tuple] = None
         self._last_ident_sig: Optional[tuple] = None
 
+    def _log(self, *args, **kwargs) -> None:
+        """Print unless in quiet mode."""
+        if self._verbosity != "quiet":
+            print(*args, **kwargs)
+
     def _maybe_log_and_play(self, np: NowPlaying) -> None:
         """
         Forward NowPlaying to the player, logging only when something changes.
@@ -134,14 +147,36 @@ class RadioApp:
         program_sig = (np.station, np.kind, np.path)
         if program_sig != self._last_program_sig:
             self._last_program_sig = program_sig
-            print(f"[PLAY] {np.station} {np.kind}: {_basename(np.path)}")
+            if self._verbosity != "quiet":
+                if self._verbosity == "verbose":
+                    ts = datetime.datetime.now().strftime("%H:%M:%S")
+                    tag = f"{T.BOLD}{T.BRIGHT_GREEN}[PLAY {ts}]{T.RESET}"
+                    filepath = np.path or "—"
+                else:
+                    tag = f"{T.BOLD}{T.BRIGHT_GREEN}[PLAY]{T.RESET}"
+                    filepath = _basename(np.path)
+                print(
+                    f"{tag} {T.BOLD}{T.BRIGHT_CYAN}{np.station}{T.RESET}"
+                    f"  {T.YELLOW}{np.kind}{T.RESET}: {T.BRIGHT_WHITE}{filepath}{T.RESET}"
+                )
 
         ident_sig = None
         if np.ident_overlay:
             ident_sig = (np.station, np.ident_overlay.path, float(np.ident_overlay.at_s))
         if ident_sig and ident_sig != self._last_ident_sig:
             self._last_ident_sig = ident_sig
-            print(f"[IDENT] {np.station}: {_basename(np.ident_overlay.path)}")
+            if self._verbosity != "quiet":
+                if self._verbosity == "verbose":
+                    ts = datetime.datetime.now().strftime("%H:%M:%S")
+                    tag = f"{T.BOLD}{T.BRIGHT_YELLOW}[IDENT {ts}]{T.RESET}"
+                    filepath = np.ident_overlay.path
+                else:
+                    tag = f"{T.BOLD}{T.BRIGHT_YELLOW}[IDENT]{T.RESET}"
+                    filepath = _basename(np.ident_overlay.path)
+                print(
+                    f"{tag} {T.BOLD}{T.BRIGHT_CYAN}{np.station}{T.RESET}"
+                    f": {T.BRIGHT_WHITE}{filepath}{T.RESET}"
+                )
 
         # Always call play(); Player should be idempotent and handle seeks/overlays correctly.
         self.player.play(np)
@@ -161,8 +196,13 @@ class RadioApp:
             # crossfade mix immediately for responsiveness
             self.player.set_mix(self.state.base_music_vol)
 
-            # print dial info (kept as-is)
-            print(f"Dial: {self.state.freq:.1f} FM  (nearest {name} @ {sf:.1f}, mix={self.state.base_music_vol}%)")
+            if self._verbosity == "verbose":
+                self._log(
+                    f"{T.DIM}Dial: {T.MAGENTA}{self.state.freq:.1f} FM{T.RESET}"
+                    f"{T.DIM}  (nearest {T.CYAN}{name}{T.DIM}"
+                    f" @ {T.MAGENTA}{sf:.1f}{T.DIM},"
+                    f" mix={T.YELLOW}{self.state.base_music_vol}%{T.DIM}){T.RESET}"
+                )
 
             # If station changed, force an immediate program refresh
             if self.state.station_name != name:
@@ -173,7 +213,10 @@ class RadioApp:
                 active = self.state.base_music_vol > 0
                 np = self.scheduler.ensure_station_current(name, time.time(), active=active)
 
-                print(f"Station changed to {name} @ {sf:.1f} FM")
+                self._log(
+                    f"{T.CYAN}Station \u2192 {T.BOLD}{T.BRIGHT_CYAN}{name}{T.RESET}"
+                    f"{T.CYAN} @ {T.MAGENTA}{sf:.1f}{T.CYAN} FM{T.RESET}"
+                )
                 self._maybe_log_and_play(np)
 
     def run(self) -> None:
@@ -194,7 +237,10 @@ class RadioApp:
 
         # initial tune
         self.tune(0.0)
-        print("Radio running. Ctrl+C to exit.")
+        self._log(
+            f"{T.BOLD}{T.BRIGHT_GREEN}Radio running.{T.RESET}"
+            f"  {T.DIM}Ctrl+C to exit.{T.RESET}"
+        )
 
         try:
             while True:

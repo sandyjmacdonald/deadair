@@ -18,6 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from radio import terminal as T
+
 
 def expand(p: str) -> str:
     return os.path.abspath(os.path.expanduser(p))
@@ -37,8 +39,9 @@ def main() -> int:
 
     # Nuke DB
     if db_path.exists():
-        print(f"Deleting DB: {db_path}")
+        print(f"{T.YELLOW}\u2717 Deleting DB:{T.RESET} {T.DIM}{db_path}{T.RESET}")
         db_path.unlink()
+        print(f"{T.GREEN}\u2713 Deleted.{T.RESET}")
 
     # Re-run scan using the module CLI (no brittle imports)
     cmd = [
@@ -55,7 +58,7 @@ def main() -> int:
     if args.verbose:
         cmd.append("--verbose")
 
-    print("Running:", " ".join(cmd))
+    print(f"\n{T.BOLD}{T.CYAN}\u2192 Running scan:{T.RESET} {T.DIM}{' '.join(cmd)}{T.RESET}\n")
     return subprocess.call(cmd)
 
 
