@@ -1,6 +1,6 @@
 # Required: paths
-db_path            = "/home/radio/radio-thingy/radio.db"
-station_tomls_glob = "/home/radio/radio-thingy/stations/*.toml"
+db_path            = "/home/radio/deadair/radio.db"
+station_tomls_glob = "/home/radio/deadair/stations/*.toml"
 noise_file         = "/home/radio/media/effects/noise.mp3"
 
 # Audio output
@@ -16,6 +16,11 @@ freq_max    = 98.0
 step        = 0.1    # MHz per button press
 lock_window = 0.2    # MHz from station centre → full volume
 fade_window = 0.5    # MHz fade zone outside lock_window
+
+# Overlay (voice-over) defaults — applied globally to all stations
+overlay_pad_s  = 2.0   # seconds into song before overlay fires
+overlay_duck   = 0.65  # music volume factor while overlay plays (0.0–1.0)
+overlay_ramp_s = 0.5   # duck fade in/out duration (seconds)
 
 # Main loop
 tick_s = 0.25
