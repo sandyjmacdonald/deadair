@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-rescan.py — nuke the DB and rerun the scan_media CLI.
+rescan.py — add new data to the database, optionally nuking first.
 
 Usage:
   . .venv/bin/activate
   python rescan.py
 
 Optional:
-  python rescan.py --db ./radio.db --music ~/media/music --stations "./stations/*.toml" --verbose
+  python rescan.py --db ./radio.db --music ~/media/music --stations "./stations/*.toml" --verbose --nuke
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ def main() -> int:
     ap.add_argument("--music", default="~/media/music", help="Music root directory (default: ~/media/music)")
     ap.add_argument("--stations", default="./stations/*.toml", help='Station TOML glob (default: ./stations/*.toml)')
     ap.add_argument("--verbose", action="store_true", help="Pass --verbose to scan_media")
+    ap.add_argument("--nuke", action="store_true", help="Pass --nuke to nuke the DB first")
     args = ap.parse_args()
 
     db_path = Path(expand(args.db))
@@ -38,7 +39,7 @@ def main() -> int:
     stations_glob = args.stations
 
     # Nuke DB
-    if db_path.exists():
+    if db_path.exists() and args.nuke:
         print(f"{T.YELLOW}\u2717 Deleting DB:{T.RESET} {T.DIM}{db_path}{T.RESET}")
         db_path.unlink()
         print(f"{T.GREEN}\u2713 Deleted.{T.RESET}")
