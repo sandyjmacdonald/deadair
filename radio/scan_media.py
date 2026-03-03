@@ -11,7 +11,7 @@ from typing import Iterable, Optional
 from mutagen.mp3 import MP3
 
 from .db import connect
-from .helpers import MediaInfo, upsert_media, upsert_station, link_station_media
+from .helpers import MediaInfo, upsert_media, upsert_station, link_station_media, prune_missing_media
 from .station_config import StationConfig, load_station_toml
 from . import terminal as T
 
@@ -230,6 +230,10 @@ def main() -> int:
             print(f"  {T.GREEN}overlays:{T.RESET}")
             for dir_path, n in overlay_counts.items():
                 print(f"    {T.DIM}{dir_path}:{T.RESET} {T.BOLD}{n}{T.RESET} files")
+
+    n_pruned = prune_missing_media(con)
+    if n_pruned:
+        print(f"\n{T.YELLOW}Pruned: {T.BOLD}{n_pruned}{T.RESET}{T.YELLOW} missing file(s) removed from DB{T.RESET}")
 
     con.commit()
     con.close()

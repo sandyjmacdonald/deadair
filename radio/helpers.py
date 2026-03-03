@@ -113,6 +113,16 @@ def link_station_media(con: sqlite3.Connection, station_id_: int, media_id: int)
     )
 
 
+def prune_missing_media(con: sqlite3.Connection) -> int:
+    """Delete media rows whose files no longer exist on disk. Returns count deleted."""
+    rows = all_(con, "SELECT id, path FROM media")
+    missing_ids = [int(r["id"]) for r in rows if not Path(r["path"]).exists()]
+    if missing_ids:
+        q = ",".join("?" * len(missing_ids))
+        con.execute(f"DELETE FROM media WHERE id IN ({q})", missing_ids)
+    return len(missing_ids)
+
+
 # -------------------- Station Media Queries --------------------
 
 def random_station_media(con: sqlite3.Connection, station_id_: int, kind: str) -> Optional[sqlite3.Row]:
