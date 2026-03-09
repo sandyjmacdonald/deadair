@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+import time
 from typing import Callable, Optional
 
 
@@ -37,3 +39,74 @@ class GpioButtonInput(TuneInput):
                 b.close()
         self._btn_down = None
         self._btn_up = None
+
+
+class RgbEncoderInput(TuneInput):
+    """Pimoroni RGB Encoder Breakout connected via I2C (addr 0x0F).
+
+    Each detent of the encoder fires tune(±step).  If interrupt_pin is given
+    (the Pi GPIO pin wired to the breakout's INT header), interrupts are used;
+    otherwise the encoder is polled at poll_hz.
+    """
+
+    # Encoder breakout pin assignments (fixed on the hardware)
+    _ENC_A = 12
+    _ENC_B = 3
+    _ENC_C = 11
+
+    def __init__(
+        self,
+        step: float,
+        i2c_addr: int = 0x0F,
+        interrupt_pin: Optional[int] = None,
+        poll_hz: float = 30.0,
+    ):
+        self.step = step
+        self.i2c_addr = i2c_addr
+        self.interrupt_pin = interrupt_pin
+        self._poll_interval = 1.0 / poll_hz
+        self._tune: Optional[Callable[[float], None]] = None
+        self._ioe: Optional[object] = None
+        self._last_count: int = 0
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+
+    def start(self, tune: Callable[[float], None]) -> None:
+        import ioexpander as io  # lazy — no crash on non-Pi
+
+        self._tune = tune
+
+        if self.interrupt_pin is not None:
+            self._ioe = io.IOE(i2c_addr=self.i2c_addr, interrupt_pin=self.interrupt_pin)
+            self._ioe.enable_interrupt_out(pin_swap=True)
+        else:
+            self._ioe = io.IOE(i2c_addr=self.i2c_addr)
+
+        self._ioe.setup_rotary_encoder(1, self._ENC_A, self._ENC_B, pin_c=self._ENC_C)
+        self._last_count = self._ioe.read_rotary_encoder(1)
+
+        self._running = True
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def _loop(self) -> None:
+        ioe = self._ioe
+        use_interrupt = self.interrupt_pin is not None
+
+        while self._running:
+            if not use_interrupt or ioe.get_interrupt():
+                count = ioe.read_rotary_encoder(1)
+                if use_interrupt:
+                    ioe.clear_interrupt()
+                delta = count - self._last_count
+                if delta != 0:
+                    self._last_count = count
+                    self._tune(delta * self.step)
+            time.sleep(self._poll_interval)
+
+    def stop(self) -> None:
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=2.0)
+            self._thread = None
+        self._ioe = None

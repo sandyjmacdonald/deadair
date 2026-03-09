@@ -68,6 +68,7 @@ step "Installing Python dependencies..."
 sudo -u "${RADIO_USER}" "${VENV_DIR}/bin/pip" install --upgrade \
   python-mpv mutagen \
   gpiozero lgpio toml \
+  pimoroni-ioexpander \
   fastapi "uvicorn[standard]" -q
 ok "Python deps installed."
 
@@ -86,11 +87,13 @@ import mpv
 import mutagen
 import gpiozero
 import lgpio
+import ioexpander
 print("  python:", sys.version.split()[0])
 print("  python-mpv OK")
 print("  mutagen:", mutagen.version_string)
 print("  gpiozero OK")
 print("  lgpio OK")
+print("  ioexpander OK")
 PY
 
 printf "\n${BOLD}${BRIGHT_GREEN}✓ Installation complete.${RESET}\n\n"
