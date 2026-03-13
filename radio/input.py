@@ -129,7 +129,9 @@ class PotentiometerInput(VolumeInput):
     Polled at poll_hz.
     """
 
-    _POT_PIN = 1
+    _ENC_A = 12
+    _ENC_B = 3
+    _ENC_C = 11
 
     def __init__(
         self,
@@ -148,7 +150,13 @@ class PotentiometerInput(VolumeInput):
 
         self._set_volume = set_volume
         self._ioe = io.IOE(i2c_addr=self.i2c_addr)
-        self._ioe.set_mode(self._POT_PIN, io.PIN_MODE_ADC)
+
+        self._ioe.set_mode(self._ENC_A, io.PIN_MODE_PP)
+        self._ioe.set_mode(self._ENC_B, io.PIN_MODE_PP)
+        self._ioe.set_mode(self._ENC_C, io.ADC)
+
+        self._ioe.output(self._ENC_A, 1)
+        self._ioe.output(self._ENC_B, 0)
 
         self._running = True
         self._thread = threading.Thread(target=self._loop, daemon=True)
@@ -157,9 +165,8 @@ class PotentiometerInput(VolumeInput):
     def _loop(self) -> None:
         ioe = self._ioe
         while self._running:
-            raw = ioe.input(self._POT_PIN)
-            vref = ioe.get_adc_vref()
-            volume = int((raw / vref) * 100)
+            analog = ioe.input(self._ENC_C)
+            volume = int((analog / 3.3) * 100)
             self._set_volume(volume)
             time.sleep(self._poll_interval)
 
