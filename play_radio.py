@@ -22,7 +22,7 @@ def main() -> None:
     ap.add_argument(
         "--potentiometer",
         action="store_true",
-        help="Enable the Pimoroni Potentiometer Breakout (I2C addr 0x0E) for volume control",
+        help="Enable the Pimoroni Potentiometer Breakout (I2C addr 0x0E, bus 0 / pins 27+28) for volume control",
     )
     group = ap.add_mutually_exclusive_group()
     group.add_argument("--verbose", action="store_true", help="Verbose output: timestamps, full paths, dial position")

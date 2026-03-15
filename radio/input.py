@@ -126,7 +126,8 @@ class PotentiometerInput(VolumeInput):
     """Pimoroni Potentiometer Breakout connected via I2C (addr 0x0E).
 
     Reads the potentiometer position and calls set_volume(0–100).
-    Polled at poll_hz.
+    Polled at poll_hz.  i2c_bus selects the SMBus device (0 = pins 27/28,
+    1 = pins 3/5).
     """
 
     _ENC_A = 12
@@ -137,8 +138,10 @@ class PotentiometerInput(VolumeInput):
         self,
         i2c_addr: int = 0x0E,
         poll_hz: float = 10.0,
+        i2c_bus: int = 0,
     ):
         self.i2c_addr = i2c_addr
+        self.i2c_bus = i2c_bus
         self._poll_interval = 1.0 / poll_hz
         self._set_volume: Optional[Callable[[int], None]] = None
         self._ioe: Optional[object] = None
@@ -149,7 +152,7 @@ class PotentiometerInput(VolumeInput):
         import ioexpander as io  # lazy — no crash on non-Pi
 
         self._set_volume = set_volume
-        self._ioe = io.IOE(i2c_addr=self.i2c_addr)
+        self._ioe = io.IOE(i2c_addr=self.i2c_addr, smbus_id=self.i2c_bus)
 
         self._ioe.set_mode(self._ENC_A, io.PIN_MODE_PP)
         self._ioe.set_mode(self._ENC_B, io.PIN_MODE_PP)
