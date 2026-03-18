@@ -175,6 +175,12 @@ class Player:
             # cancel any ident schedule from previous program
             self._cancel_ident_timer()
 
+            # stop any overlay that is already playing
+            try:
+                self.ident.command("stop")
+            except Exception:
+                pass
+
             # Reset ducking when switching program content
             self._start_duck_ramp(target_factor=1.0)
 
