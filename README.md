@@ -42,6 +42,12 @@ deadair is a Python-based FM radio station emulator that brings the nostalgic ex
 - MPV-based playback for reliable audio
 - Support for external DACs and amplifiers
 
+### 💡 Tuning LED
+- Optional PWM LED on any GPIO pin that gives physical feedback as you tune
+- Fades from off at the edge of the tuning window up to full brightness when locked to a station
+- Brightness tracks the same gain curve used for audio, so the LED and sound fade in together
+- Configured in `config.toml` via `tuning_led_pin` and `led_brightness`
+
 ### 🔧 Smart Scheduler
 - Intelligent song selection based on duration to fit time slots
 - Avoids playing the same song on multiple stations simultaneously, or the same song too frequently
@@ -115,6 +121,8 @@ The first three keys are **required**; everything else has a sensible default:
 | `step` | | `0.1` | MHz per button press |
 | `lock_window` | | `0.2` | MHz from a station centre → full volume |
 | `fade_window` | | `0.5` | MHz fade zone outside `lock_window` |
+| `tuning_led_pin` | | `null` | BCM GPIO pin number for the tuning LED (omit to disable) |
+| `led_brightness` | | `0.5` | Maximum PWM brightness for the tuning LED, 0.0–1.0 |
 | `tick_s` | | `0.25` | Main loop tick interval in seconds |
 | `api_host` | | `"0.0.0.0"` | HTTP API bind address |
 | `api_port` | | `8000` | HTTP API port |
@@ -255,6 +263,30 @@ from radio.radio import RadioApp
 app = RadioApp(config=load_config("/path/to/config.toml"), inputs=[])
 app.run()
 ```
+
+### Tuning LED
+
+To add a tuning LED, connect a PWM-capable LED (with an appropriate resistor) to any BCM GPIO pin and set `tuning_led_pin` in `config.toml`:
+
+```toml
+tuning_led_pin = 17     # BCM pin number
+led_brightness = 0.8    # optional, default 0.5
+```
+
+`play_radio.py` will pick this up automatically — no code changes needed. If you want to wire it up manually:
+
+```python
+from radio.config import load_config
+from radio.input import TuningLED
+from radio.radio import RadioApp
+
+cfg = load_config("/path/to/config.toml")
+tuning_led = TuningLED(cfg.tuning_led_pin, max_brightness=cfg.led_brightness)
+app = RadioApp(config=cfg, inputs=[...], tuning_led=tuning_led)
+app.run()
+```
+
+The LED uses `gpiozero.PWMLED` under the hood, so any `gpiozero`-supported pin will work.
 
 ## Web API
 
