@@ -123,6 +123,11 @@ class RadioApp:
         # tuning state
         self.state = TuningState(freq=90.0)
 
+        # lock and mute state must be set before any input callbacks are registered
+        self._lock = threading.Lock()
+        self._muted = False
+        self._last_vol: int = self.config.master_vol
+
         # input devices
         self._inputs = inputs or []
         for inp in self._inputs:
@@ -135,13 +140,6 @@ class RadioApp:
         self._tuning_led = tuning_led
         if self._tuning_led:
             self._tuning_led.start()
-
-        # lock for tune() calls (gpio callbacks are threaded)
-        self._lock = threading.Lock()
-
-        # mute state
-        self._muted = False
-        self._last_vol: int = self.config.master_vol
 
         # buttons from config — values are RadioApp method names
         self._button_inputs: list[ButtonInput] = []
