@@ -129,7 +129,7 @@ The first three keys are **required**; everything else has a sensible default:
 | `fade_window` | | `0.5` | MHz fade zone outside `lock_window` |
 | `tuning_led_pin` | | `null` | BCM GPIO pin number for the tuning LED (omit to disable) |
 | `led_brightness` | | `0.5` | Maximum PWM brightness for the tuning LED, 0.0–1.0 |
-| `[buttons]` | | `{}` | Table mapping BCM GPIO pin numbers to button actions (see below) |
+| `buttons` | | `[]` | Array of `{ pin, action }` entries mapping GPIO pins to button actions (see below) |
 | `tick_s` | | `0.25` | Main loop tick interval in seconds |
 | `api_host` | | `"0.0.0.0"` | HTTP API bind address |
 | `api_port` | | `8000` | HTTP API port |
@@ -300,9 +300,10 @@ The LED uses `gpiozero.PWMLED` under the hood, so any `gpiozero`-supported pin w
 Add a `[buttons]` table to `config.toml`. Keys are BCM GPIO pin numbers; values are the `RadioApp` method to call when the button is pressed:
 
 ```toml
-[buttons]
-23 = "tune_next_station"   # cycle to the next station
-24 = "toggle_mute"         # mute / unmute
+buttons = [
+    { pin = 23, action = "tune_next_station" },   # cycle to the next station
+    { pin = 24, action = "toggle_mute" },          # mute / unmute
+]
 ```
 
 Available actions:

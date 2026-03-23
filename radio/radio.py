@@ -145,7 +145,7 @@ class RadioApp:
 
         # buttons from config — values are RadioApp method names
         self._button_inputs: list[ButtonInput] = []
-        for pin, action in self.config.buttons.items():
+        for pin, action in self.config.buttons:
             fn = getattr(self, action, None)
             if fn is None or not callable(fn):
                 print(f"Warning: no callable method '{action}' on RadioApp for GPIO {pin}, skipping")
