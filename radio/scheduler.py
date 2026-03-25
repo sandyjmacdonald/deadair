@@ -457,7 +457,16 @@ class Scheduler:
         last_break_ts = float(st["last_break_ts"] or 0.0) if st else 0.0
         if pending:
             return
-        if (now_ts - last_break_ts) >= freq:
+        elapsed = now_ts - last_break_ts
+        if elapsed >= freq:
+            # If the gap is larger than one full break cycle (e.g. the radio was
+            # powered off for a long time), don't fire a break immediately on
+            # boot.  Reset last_break_ts to now so the next break fires after a
+            # normal break_frequency_s interval.
+            if elapsed > freq * 2:
+                helpers.update_station_flags(self.con, sid, last_break_ts=now_ts)
+                self.con.commit()
+                return
             if st:
                 helpers.update_station_flags(self.con, sid, pending_break=1)
             else:
