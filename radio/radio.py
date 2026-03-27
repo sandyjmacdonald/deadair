@@ -346,6 +346,7 @@ class RadioApp:
         self._seek_thread = threading.Thread(target=_seek_worker, args=(self._seek_stop,), daemon=True)
         self._seek_thread.start()
 
+    @with_led_feedback
     def toggle_mute(self) -> None:
         """Toggle mute. Restores to the current potentiometer position or last known volume."""
         if self._muted:
@@ -355,6 +356,7 @@ class RadioApp:
             self._last_vol = self.player.cfg.master_vol
             self._muted = True
             self.player.set_master_vol(0)
+        return 1 if self._muted else 2
 
     @with_led_feedback
     def toggle_favourite(self):
