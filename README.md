@@ -423,6 +423,38 @@ Station schedules specify which tags to play each hour:
 8 = { tags = ["pop", "rock"] }          # Mix of pop and rock
 ```
 
+### Day Templates
+
+If several days share the same schedule, define it once as a named template and reference it by name instead of repeating it:
+
+```toml
+[day_templates.weekday]
+0  = { tags = "ambient" }
+6  = { tags = "pop", overlays = "/path/to/overlays/morning", overlays_probability = 0.5 }
+12 = { tags = ["pop", "dance"] }
+17 = { tags = "rock" }
+22 = { tags = "chill" }
+
+[day_templates.weekend]
+0  = { tags = "dance" }
+10 = { tags = ["pop", "indie"] }
+20 = { tags = "dance", overlays = "/path/to/overlays/party", overlays_probability = 1.0 }
+
+[schedule]
+monday    = "weekday"
+tuesday   = "weekday"
+wednesday = "weekday"
+thursday  = "weekday"
+saturday  = "weekend"
+sunday    = "weekend"
+
+[schedule.friday]
+# Friday is unique — defined as a normal subtable, not a template
+17 = { tags = ["pop", "dance"], overlays = "/path/to/overlays/weekend", overlays_probability = 0.6 }
+```
+
+Days assigned to a template and days defined as subtables can be freely mixed. Any day whose name is not mentioned is treated as having no programming (noise only).
+
 ### Station Idents
 
 Idents are short station identification clips that play **between songs** as standalone items. They're triggered by `ident_frequency_s` — when enough time has passed since the last ident, one is queued to play after the current song finishes. They're perfect for:

@@ -58,13 +58,21 @@ class ScheduleEntry:
     overlays_probability: float = 0.0
 
 
-def _normalize_schedule(raw: Any) -> dict[str, dict[int, ScheduleEntry]]:
+def _normalize_schedule(
+    raw: Any,
+    templates: dict[str, Any] | None = None,
+) -> dict[str, dict[int, ScheduleEntry]]:
     """
     Accepts schedule in TOML like:
 
       [schedule.monday]
       7 = { tags = "pop" }
       8 = { tags = ["pop", "rock"], overlays = "KHHZ-pop-overlays", overlays_probability = 0.3 }
+
+    Or with a day_template reference:
+
+      [schedule]
+      monday = "weekday"   # expands to the [day_templates.weekday] table
 
     Produces: {"monday": {7: ScheduleEntry(...), 8: ScheduleEntry(...)}}
     """
@@ -73,7 +81,14 @@ def _normalize_schedule(raw: Any) -> dict[str, dict[int, ScheduleEntry]]:
 
     out: dict[str, dict[int, ScheduleEntry]] = {}
     for day, day_map in raw.items():
-        if not isinstance(day, str) or not isinstance(day_map, dict):
+        if not isinstance(day, str):
+            continue
+        # Template reference: day = "template_name"
+        if isinstance(day_map, str):
+            if not templates or day_map not in templates:
+                continue
+            day_map = templates[day_map]
+        if not isinstance(day_map, dict):
             continue
         dkey = day.strip().lower()
         if not dkey:
@@ -199,7 +214,8 @@ def load_station_toml(path: str) -> StationConfig:
     ident_frequency_s = _as_int(data.get("ident_frequency_s") or data.get("ident_frequency") or 0, 0)
 
     top_of_the_hour = _as_str(data.get("top_of_the_hour")).strip()
-    schedule = _normalize_schedule(data.get("schedule"))
+    templates = data.get("day_templates") or {}
+    schedule = _normalize_schedule(data.get("schedule"), templates=templates)
 
     return StationConfig(
         name=name,
