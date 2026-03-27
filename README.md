@@ -316,6 +316,32 @@ Available actions:
 
 `RadioApp` picks this up automatically from config — no code changes needed. Buttons use `gpiozero.Button` with internal pull-up resistors.
 
+### Running as a systemd service
+
+To have deadair start automatically on boot, run the provided setup script as the radio user (no `sudo` needed):
+
+```bash
+bash setup_service.sh
+```
+
+This creates a systemd **user** service (`~/.config/systemd/user/deadair.service`) that:
+
+- Starts `play_radio.py` from the project directory using the virtualenv Python
+- Restarts automatically on failure (5-second delay)
+- Waits for PipeWire/PulseAudio to be available before starting
+- Enables linger so the service starts at boot without requiring a login session
+
+After setup, the service is enabled and started immediately. Useful commands:
+
+```bash
+systemctl --user status deadair     # check status
+systemctl --user stop deadair       # stop
+systemctl --user restart deadair    # restart
+journalctl --user -u deadair -f     # follow logs
+```
+
+> **Note:** `install.sh` must have been run first — `setup_service.sh` will exit with an error if the virtualenv is not found.
+
 ## Web API
 
 When the radio starts, a FastAPI server starts automatically on port `8000`. All endpoints are read-only except `/tune`.
@@ -330,8 +356,8 @@ curl http://localhost:8000/stations
 
 ```json
 [
-  { "name": "KABC", "frequency": 92.5 },
-  { "name": "WXYZ", "frequency": 95.1 }
+  { "name": "KABC", "frequency": 92.5, "station_type": "regular" },
+  { "name": "WXYZ", "frequency": 95.1, "station_type": "stream" }
 ]
 ```
 
@@ -349,6 +375,7 @@ curl http://localhost:8000/status
 {
   "frequency": 92.5,
   "station": "KABC",
+  "station_type": "regular",
   "tuned": true,
   "now_playing": {
     "type": "song",
@@ -366,6 +393,7 @@ curl http://localhost:8000/status
 |---|---|
 | `frequency` | Current dial frequency in MHz |
 | `station` | Name of the nearest station |
+| `station_type` | `"regular"` or `"stream"` |
 | `tuned` | `true` when the dial is close enough to a station to hear it |
 | `now_playing` | `null` when not tuned; `{"type": "noise"}` when tuned to static; full object when playing |
 | `type` | One of: `song`, `overlay`, `ident`, `commercial`, `top_of_hour`, `noise` |
