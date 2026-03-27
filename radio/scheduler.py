@@ -75,6 +75,7 @@ class Scheduler:
         overlay_pad_s: float = 2.0,
         overlay_duck: float = 0.75,
         overlay_ramp_s: float = 0.5,
+        favourite_weight: float = 2.0,
     ):
         """Set up per-station RNG seeds and verify all stations exist in the DB."""
         self.con = con
@@ -84,6 +85,7 @@ class Scheduler:
         self.overlay_pad_s = float(overlay_pad_s)
         self.overlay_duck = float(overlay_duck)
         self.overlay_ramp_s = float(overlay_ramp_s)
+        self.favourite_weight = float(favourite_weight)
 
         for name in station_cfgs.keys():
             helpers.station_id(con, name)
@@ -558,6 +560,13 @@ class Scheduler:
 
     # -------------------- Song Selection --------------------
 
+    def _weighted_choice(self, rng: random.Random, rows: list) -> object:
+        """Pick a random row, giving favourite songs favourite_weight tickets vs 1 for others."""
+        if self.favourite_weight <= 1.0 or not rows:
+            return rng.choice(rows)
+        weights = [self.favourite_weight if r["favourite"] else 1.0 for r in rows]
+        return rng.choices(rows, weights=weights, k=1)[0]
+
     def _currently_playing_media_ids(self) -> set[int]:
         """Return the set of media ids that are currently active across all stations."""
         cur = self.con.execute(
@@ -611,7 +620,7 @@ class Scheduler:
             avoid_params = list(avoid_ids)
 
         sql = f"""
-            SELECT m.id, m.path, m.duration_s
+            SELECT m.id, m.path, m.duration_s, m.favourite
             FROM media m
             LEFT JOIN station_media sm ON sm.media_id = m.id AND sm.station_id = ?
             WHERE m.kind = 'song'
@@ -633,9 +642,11 @@ class Scheduler:
         if remaining <= 600.0:
             best_dur = max(float(r["duration_s"] or 0.0) for r in rows)
             near = [r for r in rows if (best_dur - float(r["duration_s"] or 0.0)) <= 60.0]
-            return rng.choice(near if len(near) >= 2 else rows)
+            pool = near if len(near) >= 2 else rows
+        else:
+            pool = rows
 
-        return rng.choice(rows)
+        return self._weighted_choice(rng, pool)
 
     # -------------------- Queue Builders --------------------
 

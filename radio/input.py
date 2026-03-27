@@ -127,6 +127,7 @@ class TuningLED:
         self.pin = pin
         self._max_brightness = max(0.0, min(1.0, max_brightness))
         self._led: Optional[object] = None
+        self._blink_stop: threading.Event = threading.Event()
 
     def start(self) -> None:
         """Initialise the gpiozero PWMLED on the configured pin."""
@@ -137,10 +138,36 @@ class TuningLED:
         """Set LED brightness proportional to tuning gain (0.0–1.0)."""
         if self._led is None:
             return
+        self._blink_stop.set()  # cancel any in-progress blink
         self._led.value = max(0.0, min(1.0, value)) * self._max_brightness
+
+    def blink(self, count: int, on_s: float = 0.1, off_s: float = 0.1) -> None:
+        """Blink the LED count times in a background thread, then restore its current brightness."""
+        if self._led is None:
+            return
+        self._blink_stop.set()
+        stop = threading.Event()
+        self._blink_stop = stop
+        saved = float(self._led.value)
+
+        def _run() -> None:
+            for _ in range(count):
+                if stop.is_set():
+                    break
+                self._led.value = self._max_brightness
+                stop.wait(on_s)
+                if stop.is_set():
+                    break
+                self._led.value = 0.0
+                stop.wait(off_s)
+            if not stop.is_set():
+                self._led.value = saved
+
+        threading.Thread(target=_run, daemon=True).start()
 
     def stop(self) -> None:
         """Turn off and release the LED GPIO resource."""
+        self._blink_stop.set()
         if self._led:
             self._led.off()
             self._led.close()

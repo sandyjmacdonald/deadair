@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS media (
   title TEXT,
   tag TEXT,
   duration_s REAL,
-  mtime INTEGER
+  mtime INTEGER,
+  favourite INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS stations (
@@ -101,6 +102,7 @@ def connect(db_path: str) -> sqlite3.Connection:
     con.executescript(SCHEMA)
 
     # Migrations for older DBs that predate the current schema
+    _ensure_column(con, "media", "favourite", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(con, "station_state", "queue_json", "TEXT")
     _ensure_column(con, "station_state", "queue_index", "INTEGER DEFAULT 0")
     _ensure_column(con, "station_state", "last_ident_ts", "REAL DEFAULT 0")

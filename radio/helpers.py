@@ -167,6 +167,13 @@ def media_by_id(con: sqlite3.Connection, media_id: int) -> Optional[sqlite3.Row]
     return get_one(con, "SELECT id, path, kind, duration_s FROM media WHERE id=?", (int(media_id),))
 
 
+def toggle_favourite(con: sqlite3.Connection, media_id: int) -> bool:
+    """Flip the favourite flag on a media item. Returns the new value (True = favourited)."""
+    con.execute("UPDATE media SET favourite = 1 - favourite WHERE id = ?", (int(media_id),))
+    row = get_one(con, "SELECT favourite FROM media WHERE id = ?", (int(media_id),))
+    return bool(row["favourite"]) if row else False
+
+
 def random_station_media_filtered(
     con: sqlite3.Connection, station_id_: int, kind: str, path_prefix: str
 ) -> Optional[sqlite3.Row]:

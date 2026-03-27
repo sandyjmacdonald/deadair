@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import functools
 import glob
 import math
 import time
@@ -13,6 +14,7 @@ import uvicorn
 
 from .config import RadioConfig
 from .db import connect
+from . import helpers
 from .input import TuneInput, VolumeInput, TuningLED, ButtonInput
 from .station_config import load_station_toml, StationConfig
 from .scheduler import Scheduler, NowPlaying
@@ -73,6 +75,23 @@ def _basename(p: Optional[str]) -> str:
     return p.split("/")[-1]
 
 
+# -------------------- Decorators --------------------
+
+def with_led_feedback(fn):
+    """Blink the tuning LED after this method runs.
+
+    The decorated method should return the number of blinks desired (int), or
+    None/0 for no feedback.  The wrapper always returns None to callers, so the
+    public interface of the method is unchanged.
+    """
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        count = fn(self, *args, **kwargs)
+        if count and self._tuning_led:
+            self._tuning_led.blink(count)
+    return wrapper
+
+
 # -------------------- Radio Runtime --------------------
 
 @dataclass
@@ -121,6 +140,7 @@ class RadioApp:
             overlay_pad_s=self.config.overlay_pad_s,
             overlay_duck=self.config.overlay_duck,
             overlay_ramp_s=self.config.overlay_ramp_s,
+            favourite_weight=self.config.favourite_weight,
         )
 
         # Player
@@ -335,6 +355,37 @@ class RadioApp:
             self._last_vol = self.player.cfg.master_vol
             self._muted = True
             self.player.set_master_vol(0)
+
+    @with_led_feedback
+    def toggle_favourite(self):
+        """Toggle the favourite flag on the currently playing song.
+
+        Returns 1 (favourited) or 2 (unfavourited) for LED blink feedback, or
+        None if no song is playing.
+        """
+        with self._lock:
+            st = self.state.station_name
+        if not st:
+            return None
+        cfg = self.station_cfgs.get(st)
+        if not cfg or cfg.station_type == "stream":
+            return None
+
+        sid = helpers.station_id(self.con, st)
+        state = helpers.get_station_state(self.con, sid)
+        if not state or state["kind"] != "song" or state["current_media_id"] is None:
+            return None
+
+        media_id = int(state["current_media_id"])
+        is_fav = helpers.toggle_favourite(self.con, media_id)
+        self.con.commit()
+
+        label = "favourited" if is_fav else "unfavourited"
+        self._log(
+            f"{T.BOLD}{T.BRIGHT_YELLOW}[FAV]{T.RESET}"
+            f" {_basename(str(state['path'] or ''))} — {label}"
+        )
+        return 1 if is_fav else 2
 
     def tune(self, delta: float) -> None:
         """Adjust the dial by delta MHz, updating station selection and audio mix accordingly."""

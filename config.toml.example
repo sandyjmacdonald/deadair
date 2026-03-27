@@ -30,13 +30,19 @@ overlay_ramp_s = 0.5   # duck fade in/out duration (seconds)
 # tuning_led_pin = 17     # BCM GPIO pin
 # led_brightness = 0.5    # maximum PWM brightness (0.0–1.0)
 
+# Favourites
+# Favourite songs are given extra weight in the random song selection pool.
+# A value of 2.0 means each favourite gets two tickets vs one for non-favourites.
+# favourite_weight = 2.0
+
 # Hardware — buttons (optional)
 # Each entry specifies a BCM GPIO pin and the RadioApp method to call on press.
-# Available actions: tune_next_station, toggle_mute, seek
+# Available actions: tune_next_station, toggle_mute, seek, toggle_favourite
 # button_debounce = 0.05   # debounce window in seconds (default 0.05)
 # buttons = [
 #     { pin = 23, action = "tune_next_station" },   # cycle to the next station
 #     { pin = 24, action = "toggle_mute" },          # mute / unmute
+#     { pin = 25, action = "toggle_favourite" },     # favourite / unfavourite current song
 # ]
 
 # Hardware — rotary encoder (RGB Encoder Breakout, I2C addr 0x0F)
