@@ -129,6 +129,7 @@ The first three keys are **required**; everything else has a sensible default:
 | `fade_window` | | `0.5` | MHz fade zone outside `lock_window` |
 | `tuning_led_pin` | | `null` | BCM GPIO pin number for the tuning LED (omit to disable) |
 | `led_brightness` | | `0.5` | Maximum PWM brightness for the tuning LED, 0.0–1.0 |
+| `button_debounce` | | `0.05` | Button debounce window in seconds |
 | `buttons` | | `[]` | Array of `{ pin, action }` entries mapping GPIO pins to button actions (see below) |
 | `tick_s` | | `0.25` | Main loop tick interval in seconds |
 | `api_host` | | `"0.0.0.0"` | HTTP API bind address |

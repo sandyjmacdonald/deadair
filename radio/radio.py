@@ -163,7 +163,7 @@ class RadioApp:
             if fn is None or not callable(fn):
                 print(f"Warning: no callable method '{action}' on RadioApp for GPIO {pin}, skipping")
                 continue
-            btn = ButtonInput(pin, on_press=fn)
+            btn = ButtonInput(pin, on_press=fn, bounce_time=self.config.button_debounce)
             btn.start()
             self._button_inputs.append(btn)
 

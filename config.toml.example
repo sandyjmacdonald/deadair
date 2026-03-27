@@ -33,6 +33,7 @@ overlay_ramp_s = 0.5   # duck fade in/out duration (seconds)
 # Hardware — buttons (optional)
 # Each entry specifies a BCM GPIO pin and the RadioApp method to call on press.
 # Available actions: tune_next_station, toggle_mute, seek
+# button_debounce = 0.05   # debounce window in seconds (default 0.05)
 # buttons = [
 #     { pin = 23, action = "tune_next_station" },   # cycle to the next station
 #     { pin = 24, action = "toggle_mute" },          # mute / unmute

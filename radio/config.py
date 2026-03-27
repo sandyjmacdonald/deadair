@@ -32,6 +32,7 @@ class RadioConfig:
     # Hardware
     tuning_led_pin: Optional[int] = None
     led_brightness: float = 0.5
+    button_debounce: float = 0.05
     buttons: list[tuple[int, str]] = field(default_factory=list)
     encoder_interrupt_pin: Optional[int] = None
     encoder_i2c_bus: int = 1
@@ -66,6 +67,7 @@ def load_config(path: str) -> RadioConfig:
         overlay_ramp_s=float(data.get("overlay_ramp_s", 0.5)),
         tuning_led_pin=int(data["tuning_led_pin"]) if "tuning_led_pin" in data else None,
         led_brightness=float(data.get("led_brightness", 0.5)),
+        button_debounce=float(data.get("button_debounce", 0.05)),
         buttons=[(int(b["pin"]), b["action"]) for b in data.get("buttons", [])],
         encoder_interrupt_pin=int(data["encoder_interrupt_pin"]) if "encoder_interrupt_pin" in data else None,
         encoder_i2c_bus=int(data.get("encoder_i2c_bus", 1)),
