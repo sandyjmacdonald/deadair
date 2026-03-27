@@ -24,11 +24,16 @@ from . import terminal as T
 # -------------------- Helpers --------------------
 
 def clamp_freq(v: float, freq_min: float, freq_max: float, step: float = 0.1) -> float:
+    """Clamp v to [freq_min, freq_max] and round to the number of decimal places implied by step."""
     decimals = max(1, -int(math.floor(math.log10(step)))) if step > 0 else 1
     return round(max(freq_min, min(freq_max, v)), decimals)
 
 
 def gain_from_delta(delta: float, lock_window: float, fade_window: float) -> float:
+    """Return a 0–1 gain based on how far the dial is from the station centre frequency.
+
+    Returns 1.0 within lock_window, linearly fades to 0.0 across fade_window beyond that.
+    """
     if delta <= lock_window:
         return 1.0
     if delta <= lock_window + fade_window:
@@ -37,6 +42,7 @@ def gain_from_delta(delta: float, lock_window: float, fade_window: float) -> flo
 
 
 def sorted_stations(cfgs: dict[str, StationConfig]):
+    """Return a list of (name, freq) tuples sorted by ascending frequency."""
     sts = sorted(((name, float(cfg.freq)) for name, cfg in cfgs.items()), key=lambda x: x[1])
     if not sts:
         raise RuntimeError("No stations loaded")
@@ -44,12 +50,14 @@ def sorted_stations(cfgs: dict[str, StationConfig]):
 
 
 def midpoints(sts):
+    """Return a list of midpoint frequencies between adjacent stations in sts."""
     if len(sts) < 2:
         return []
     return [(sts[i][1] + sts[i + 1][1]) / 2.0 for i in range(len(sts) - 1)]
 
 
 def nearest_station(freq: float, sts, mids):
+    """Return the (name, freq) tuple for the station whose Voronoi region contains freq."""
     if not mids:
         return sts[0]
     for i, m in enumerate(mids):
@@ -59,6 +67,7 @@ def nearest_station(freq: float, sts, mids):
 
 
 def _basename(p: Optional[str]) -> str:
+    """Return the final path component of p, or '—' if p is empty."""
     if not p:
         return "—"
     return p.split("/")[-1]
@@ -87,6 +96,7 @@ class RadioApp:
         tuning_led: TuningLED | None = None,
         verbosity: str = "normal",
     ):
+        """Initialise the radio: load station configs, connect to the DB, create the player, and wire up input devices."""
         self.config = config
         self._verbosity = verbosity  # "quiet" | "normal" | "verbose"
 

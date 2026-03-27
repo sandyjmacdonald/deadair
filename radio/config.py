@@ -8,6 +8,8 @@ from typing import Optional
 
 @dataclass
 class RadioConfig:
+    """Top-level configuration for the radio application, loaded from a TOML file."""
+
     # Required paths
     db_path: str
     station_tomls_glob: str
@@ -43,6 +45,7 @@ class RadioConfig:
 
 
 def load_config(path: str) -> RadioConfig:
+    """Load and return a RadioConfig from a TOML file at path."""
     p = Path(path).expanduser()
     data = tomllib.loads(p.read_text(encoding="utf-8"))
     return RadioConfig(

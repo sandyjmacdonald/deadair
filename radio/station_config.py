@@ -10,6 +10,7 @@ import tomllib
 
 
 def _as_list(v: Any) -> list[str]:
+    """Coerce a TOML value (None, str, or list[str]) to a list of non-empty strings."""
     if v is None:
         return []
     if isinstance(v, str):
@@ -27,6 +28,7 @@ def _as_list(v: Any) -> list[str]:
 
 
 def _as_float(v: Any, default: float) -> float:
+    """Convert v to float, returning default on failure."""
     try:
         return float(v)
     except Exception:
@@ -34,6 +36,7 @@ def _as_float(v: Any, default: float) -> float:
 
 
 def _as_int(v: Any, default: int) -> int:
+    """Convert v to int, returning default on failure."""
     try:
         return int(v)
     except Exception:
@@ -41,6 +44,7 @@ def _as_int(v: Any, default: int) -> int:
 
 
 def _as_str(v: Any) -> str:
+    """Convert v to str, returning an empty string for None."""
     if v is None:
         return ""
     return str(v)

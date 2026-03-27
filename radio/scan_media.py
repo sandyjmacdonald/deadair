@@ -17,6 +17,7 @@ from . import terminal as T
 
 
 def parse_artist_title(filename: str) -> tuple[Optional[str], Optional[str]]:
+    """Split a filename stem of the form 'Artist - Title' into (artist, title), or (None, stem)."""
     stem = Path(filename).stem.strip()
     if " - " in stem:
         a, t = stem.split(" - ", 1)
@@ -25,6 +26,7 @@ def parse_artist_title(filename: str) -> tuple[Optional[str], Optional[str]]:
 
 
 def duration_s(path: Path) -> float:
+    """Return the duration in seconds of an MP3 file, or 0.0 if it cannot be read."""
     try:
         return float(MP3(path).info.length)
     except Exception:
@@ -32,6 +34,7 @@ def duration_s(path: Path) -> float:
 
 
 def iter_mp3(root: Path) -> Iterable[Path]:
+    """Yield all MP3 files found recursively under root."""
     if not root.exists():
         return
     for p in root.rglob("*.mp3"):
@@ -181,6 +184,7 @@ def scan_schedule_overlays(
 
 
 def load_station_cfgs(patterns: list[str]) -> list[StationConfig]:
+    """Expand glob patterns and load a StationConfig from each matched TOML path."""
     paths: list[str] = []
     for pat in patterns:
         expanded = glob.glob(pat)
@@ -189,6 +193,7 @@ def load_station_cfgs(patterns: list[str]) -> list[StationConfig]:
 
 
 def main() -> int:
+    """CLI entry point: scan all media into the DB and prune any missing files."""
     ap = argparse.ArgumentParser(description="Scan songs/idents/overlays/commercials into radio.db")
     ap.add_argument("--db", default="/home/radio/radio-code/radio.db")
     ap.add_argument("--music", required=True, help="Root containing tag subfolders (recursive)")

@@ -9,17 +9,20 @@ class ButtonInput:
     """A single push-button wired to a GPIO pin that fires a callback when pressed."""
 
     def __init__(self, pin: int, on_press: Callable[[], None], bounce_time: float = 0.05):
+        """Configure the button on pin with a debounce window of bounce_time seconds."""
         self.pin = pin
         self._on_press = on_press
         self.bounce_time = bounce_time
         self._btn: Optional[object] = None
 
     def start(self) -> None:
+        """Initialise the gpiozero Button and attach the press callback."""
         from gpiozero import Button  # lazy import — no crash on non-Pi
         self._btn = Button(self.pin, pull_up=True, bounce_time=self.bounce_time)
         self._btn.when_pressed = self._on_press
 
     def stop(self) -> None:
+        """Release the GPIO button resource."""
         if self._btn:
             self._btn.close()
             self._btn = None
@@ -56,6 +59,7 @@ class RgbEncoderInput(TuneInput):
         interrupt_pin: Optional[int] = None,
         poll_hz: float = 30.0,
     ):
+        """Configure the encoder with a tuning step size and optional interrupt GPIO pin."""
         self.step = step
         self.i2c_addr = i2c_addr
         self.i2c_bus = i2c_bus
@@ -68,6 +72,7 @@ class RgbEncoderInput(TuneInput):
         self._thread: Optional[threading.Thread] = None
 
     def start(self, tune: Callable[[float], None]) -> None:
+        """Initialise the IOExpander, configure the rotary encoder, and start the polling thread."""
         import ioexpander as io  # lazy — no crash on non-Pi
 
         self._tune = tune
@@ -86,6 +91,7 @@ class RgbEncoderInput(TuneInput):
         self._thread.start()
 
     def _loop(self) -> None:
+        """Poll or interrupt-driven loop: read encoder delta and fire the tune callback."""
         ioe = self._ioe
         use_interrupt = self.interrupt_pin is not None
 
@@ -101,6 +107,7 @@ class RgbEncoderInput(TuneInput):
             time.sleep(self._poll_interval)
 
     def stop(self) -> None:
+        """Stop the polling thread and release the IOExpander."""
         self._running = False
         if self._thread:
             self._thread.join(timeout=2.0)
@@ -116,11 +123,13 @@ class TuningLED:
     """
 
     def __init__(self, pin: int, max_brightness: float = 1.0):
+        """Configure the LED on pin with a maximum brightness cap (0.0–1.0)."""
         self.pin = pin
         self._max_brightness = max(0.0, min(1.0, max_brightness))
         self._led: Optional[object] = None
 
     def start(self) -> None:
+        """Initialise the gpiozero PWMLED on the configured pin."""
         from gpiozero import PWMLED  # lazy — no crash on non-Pi
         self._led = PWMLED(self.pin)
 
@@ -131,6 +140,7 @@ class TuningLED:
         self._led.value = max(0.0, min(1.0, value)) * self._max_brightness
 
     def stop(self) -> None:
+        """Turn off and release the LED GPIO resource."""
         if self._led:
             self._led.off()
             self._led.close()
@@ -165,6 +175,7 @@ class PotentiometerInput(VolumeInput):
         poll_hz: float = 10.0,
         i2c_bus: int = 0,
     ):
+        """Configure the potentiometer breakout address, poll rate, and I2C bus."""
         self.i2c_addr = i2c_addr
         self.i2c_bus = i2c_bus
         self._poll_interval = 1.0 / poll_hz
@@ -174,6 +185,7 @@ class PotentiometerInput(VolumeInput):
         self._thread: Optional[threading.Thread] = None
 
     def start(self, set_volume: Callable[[int], None]) -> None:
+        """Initialise the IOExpander, configure ADC pins, and start the polling thread."""
         import ioexpander as io  # lazy — no crash on non-Pi
 
         self._set_volume = set_volume
@@ -191,6 +203,7 @@ class PotentiometerInput(VolumeInput):
         self._thread.start()
 
     def _loop(self) -> None:
+        """Polling loop: read the ADC value and call set_volume(0–100) on each iteration."""
         ioe = self._ioe
         vref = ioe.get_adc_vref()
         while self._running:
@@ -200,6 +213,7 @@ class PotentiometerInput(VolumeInput):
             time.sleep(self._poll_interval)
 
     def stop(self) -> None:
+        """Stop the polling thread and release the IOExpander."""
         self._running = False
         if self._thread:
             self._thread.join(timeout=2.0)

@@ -54,10 +54,12 @@ def _build_now_playing(
 
 
 def create_api(app: RadioApp) -> FastAPI:
+    """Build and return the FastAPI application wired to the given RadioApp instance."""
     fastapi_app = FastAPI()
     con = connect(app.config.db_path)
 
     def _get_status(station: Optional[str] = None) -> dict[str, Any]:
+        """Return the current radio status dict, optionally scoped to a specific station name."""
         # Read tuning state under lock
         with app._lock:
             dial_freq = app.state.freq
@@ -126,6 +128,7 @@ def create_api(app: RadioApp) -> FastAPI:
 
     @fastapi_app.get("/status")
     def status(station: Optional[str] = None) -> dict[str, Any]:
+        """Return the current tuning state and now-playing info, optionally filtered by station name."""
         return _get_status(station)
 
     @fastapi_app.post("/tune")

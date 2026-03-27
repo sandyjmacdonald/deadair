@@ -12,6 +12,7 @@ _IS_TTY: bool = getattr(sys.stdout, "isatty", lambda: False)()
 
 
 def _c(code: str) -> str:
+    """Return the ANSI escape code if stdout is a TTY, otherwise an empty string."""
     return code if _IS_TTY else ""
 
 

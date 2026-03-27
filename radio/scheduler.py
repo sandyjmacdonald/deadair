@@ -76,6 +76,7 @@ class Scheduler:
         overlay_duck: float = 0.75,
         overlay_ramp_s: float = 0.5,
     ):
+        """Set up per-station RNG seeds and verify all stations exist in the DB."""
         self.con = con
         self.cfgs = station_cfgs
         self.filler_slop_s = float(filler_slop_s)
@@ -189,6 +190,11 @@ class Scheduler:
         active: bool,
         schedule_entry: Optional[ScheduleEntry] = None,
     ) -> NowPlaying:
+        """Choose and persist the next item for a station whose current item has ended.
+
+        Priority order: queued item → top-of-hour jingle → commercial break → best-fit
+        song → filler (ident + commercials) → noise.
+        """
         remaining = max(0.0, slot_end_ts - now_ts)
         st = helpers.get_station_state(self.con, sid)
 
@@ -446,6 +452,11 @@ class Scheduler:
     # -------------------- Break and Overlay Flags --------------------
 
     def _maybe_mark_break_due(self, station_name: str, now_ts: float) -> None:
+        """Set pending_break=1 when break_frequency_s has elapsed since the last break.
+
+        If the gap is more than two full cycles (e.g. after a long power-off), resets the
+        clock instead of firing immediately.
+        """
         cfg = self.cfgs[station_name]
         freq = int(cfg.break_frequency_s or 0)
         if freq <= 0:
@@ -487,6 +498,11 @@ class Scheduler:
         *,
         consume: bool,
     ) -> Optional[OverlayIdent]:
+        """Return an OverlayIdent if one should play over the current song, or None.
+
+        An overlay fires when force_ident_next is set (post-break) or the schedule entry's
+        overlays_probability roll succeeds.  consume=False is a no-op (used for background ticks).
+        """
         if not consume:
             return None
 
@@ -543,6 +559,7 @@ class Scheduler:
     # -------------------- Song Selection --------------------
 
     def _currently_playing_media_ids(self) -> set[int]:
+        """Return the set of media ids that are currently active across all stations."""
         cur = self.con.execute(
             "SELECT current_media_id FROM station_state WHERE current_media_id IS NOT NULL"
         )
@@ -560,6 +577,11 @@ class Scheduler:
         duration_jitter_s: float = 12.0,
         extra_avoid_ids: Optional[set[int]] = None,
     ):
+        """Pick a song using the station's seeded RNG, avoiding recently played and cross-station duplicates.
+
+        Applies a random duration jitter to vary slot-filling, and near slot boundaries
+        prefers songs that fill the remaining time most tightly.
+        """
         rng = self._rng[station_name]
 
         remaining = float(max_duration)
@@ -621,6 +643,7 @@ class Scheduler:
         self, station_name: str, sid: int, target_s: float, slop_s: float,
         *, skip_leading_ident: bool = False,
     ) -> list[int]:
+        """Build an ordered list of media ids: optional leading ident followed by commercials up to target_s + slop_s."""
         target_s = max(0.0, float(target_s))
         max_total = target_s + float(slop_s)
 
@@ -655,6 +678,7 @@ class Scheduler:
     # -------------------- Overlay Helpers --------------------
 
     def _should_play_overlay(self, station_name: str, entry: ScheduleEntry) -> bool:
+        """Return True if the station's RNG roll falls within the schedule entry's overlay probability."""
         if not entry.overlays_dir or entry.overlays_probability <= 0:
             return False
         return self._rng[station_name].random() < entry.overlays_probability
@@ -672,10 +696,12 @@ class Scheduler:
         return ScheduleEntry(tags=[], overlays_dir="", overlays_probability=0.0)
 
     def _next_slot_start_ts(self, now_ts: float) -> float:
+        """Return the Unix timestamp of the start of the next whole hour."""
         dt = datetime.fromtimestamp(now_ts).astimezone()
         next_hour = dt.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
         return next_hour.timestamp()
 
     def _current_slot_start_ts(self, now_ts: float) -> float:
+        """Return the Unix timestamp of the start of the current whole hour."""
         dt = datetime.fromtimestamp(now_ts).astimezone()
         return dt.replace(minute=0, second=0, microsecond=0).timestamp()

@@ -81,6 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_station_media_last_played ON station_media(statio
 """
 
 def _ensure_column(con: sqlite3.Connection, table: str, col: str, decl: str) -> None:
+    """Add col to table with declaration decl if it does not already exist (migration helper)."""
     cols = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
     if col not in cols:
         con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")

@@ -132,8 +132,8 @@ class Player:
         eff = int(base * self._duck_factor)
         self.music.volume = scale(clampi(eff), master)
 
-        # ident always obey master (volume fixed at 100% * master)
-        self.ident.volume = scale(100, master)
+        # ident follows the same crossfade as music (no duck factor — it is the overlay)
+        self.ident.volume = scale(base, master)
 
     # -------------------- Program Control --------------------
 

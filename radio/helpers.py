@@ -24,11 +24,13 @@ class MediaInfo:
 # -------------------- Query Helpers --------------------
 
 def get_one(con: sqlite3.Connection, sql: str, params: Sequence[Any] = ()) -> Optional[sqlite3.Row]:
+    """Execute sql with params and return the first row, or None if no rows matched."""
     cur = con.execute(sql, params)
     return cur.fetchone()
 
 
 def get_all(con: sqlite3.Connection, sql: str, params: Sequence[Any] = ()) -> list[sqlite3.Row]:
+    """Execute sql with params and return all matching rows."""
     cur = con.execute(sql, params)
     return cur.fetchall()
 
@@ -36,6 +38,7 @@ def get_all(con: sqlite3.Connection, sql: str, params: Sequence[Any] = ()) -> li
 # -------------------- Media and Station Upserts --------------------
 
 def upsert_media(con: sqlite3.Connection, info: MediaInfo) -> int:
+    """Insert or update a media row from a MediaInfo object. Returns the media id."""
     row = get_one(con, "SELECT id, mtime FROM media WHERE path=?", (info.path,))
     if row and int(row["mtime"] or 0) == info.mtime:
         return int(row["id"])
@@ -100,6 +103,7 @@ def upsert_station(con: sqlite3.Connection, cfg: Any) -> int:
 
 
 def station_id(con: sqlite3.Connection, name: str) -> int:
+    """Return the DB id for station name, raising RuntimeError if it is not found."""
     row = get_one(con, "SELECT id FROM stations WHERE name=?", (name,))
     if not row:
         raise RuntimeError(f"Station not in DB: {name} (run scan_media first)")
@@ -107,6 +111,7 @@ def station_id(con: sqlite3.Connection, name: str) -> int:
 
 
 def link_station_media(con: sqlite3.Connection, station_id_: int, media_id: int) -> None:
+    """Associate a media item with a station in station_media (no-op if already linked)."""
     con.execute(
         "INSERT OR IGNORE INTO station_media(station_id, media_id) VALUES(?,?)",
         (int(station_id_), int(media_id)),
@@ -126,6 +131,7 @@ def prune_missing_media(con: sqlite3.Connection) -> int:
 # -------------------- Station Media Queries --------------------
 
 def random_station_media(con: sqlite3.Connection, station_id_: int, kind: str) -> Optional[sqlite3.Row]:
+    """Return a random media row of the given kind linked to the station, or None."""
     return get_one(
         con,
         """
@@ -141,6 +147,7 @@ def random_station_media(con: sqlite3.Connection, station_id_: int, kind: str) -
 
 
 def station_media_pool(con: sqlite3.Connection, station_id_: int, kind: str, limit: int = 500) -> list[sqlite3.Row]:
+    """Return up to limit randomly ordered media rows of the given kind linked to the station."""
     return get_all(
         con,
         """
@@ -156,6 +163,7 @@ def station_media_pool(con: sqlite3.Connection, station_id_: int, kind: str, lim
 
 
 def media_by_id(con: sqlite3.Connection, media_id: int) -> Optional[sqlite3.Row]:
+    """Return id, path, kind, and duration_s for the given media_id, or None if not found."""
     return get_one(con, "SELECT id, path, kind, duration_s FROM media WHERE id=?", (int(media_id),))
 
 
@@ -223,6 +231,7 @@ def best_fit_song(con: sqlite3.Connection, tags: list[str], max_duration: float,
 # -------------------- Station State Helpers --------------------
 
 def get_station_state(con: sqlite3.Connection, station_id_: int) -> Optional[sqlite3.Row]:
+    """Return the full station_state row for station_id_, joining the current media path and duration."""
     return get_one(
         con,
         """
@@ -241,6 +250,7 @@ def get_station_state(con: sqlite3.Connection, station_id_: int) -> Optional[sql
 
 
 def set_noise_state(con: sqlite3.Connection, station_id_: int, now_ts: float, ends_ts: float) -> None:
+    """Write a noise state record for the station, clearing any queued media."""
     con.execute(
         """
         INSERT INTO station_state(
@@ -276,6 +286,7 @@ def set_station_state(
     last_ident_ts: float,
     last_toth_slot_ts: float = 0.0,
 ) -> None:
+    """Upsert the full station_state row with the current playback and scheduling flags."""
     con.execute(
         """
         INSERT INTO station_state(
@@ -326,6 +337,7 @@ def update_station_flags(
     queue_json: Optional[str] = None,
     queue_index: Optional[int] = None,
 ) -> None:
+    """Partially update station_state scheduling flags; only supplied keyword arguments are written."""
     sets = []
     params: list[Any] = []
     if pending_break is not None:
@@ -351,6 +363,7 @@ def update_station_flags(
 
 
 def insert_play(con: sqlite3.Connection, station_id_: int, media_id: int, kind: str, started_ts: float) -> None:
+    """Record a play event and, for songs, update last_played_ts in station_media."""
     con.execute(
         """
         INSERT INTO plays(station_id, media_id, kind, started_ts, ended_ts)
