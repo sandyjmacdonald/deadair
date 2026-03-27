@@ -620,7 +620,7 @@ class Scheduler:
               AND m.duration_s > 1
               AND m.duration_s <= ?
               {avoid_clause}
-            ORDER BY COALESCE(sm.last_played_ts, 0) ASC, RANDOM()
+            ORDER BY COALESCE(sm.last_played_ts, 0) ASC, m.id ASC
             LIMIT ?
         """
         params = [int(sid), *tags, max_duration, *avoid_params, int(pool_limit)]
@@ -631,7 +631,7 @@ class Scheduler:
         # Within 10 minutes of the next slot, prefer songs that fill the
         # remaining time well (within 60s of the longest in the pool).
         if remaining <= 600.0:
-            best_dur = float(rows[0]["duration_s"] or 0.0)
+            best_dur = max(float(r["duration_s"] or 0.0) for r in rows)
             near = [r for r in rows if (best_dur - float(r["duration_s"] or 0.0)) <= 60.0]
             return rng.choice(near if len(near) >= 2 else rows)
 
